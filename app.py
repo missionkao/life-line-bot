@@ -18,6 +18,8 @@ YOUR_CHANNEL_SECRET = os.environ.get("SECRET")
 line_bot_api = LineBotApi(YOUR_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(YOUR_CHANNEL_SECRET)
 
+USER_ID = "U7fc6670c8ae890fcaf33f99a9796fcfc"
+
 
 @app.route("/")
 def hello():
