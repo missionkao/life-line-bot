@@ -1,6 +1,8 @@
 # Life Line Bot
 For those who want to be lazy, lazy, and lazy every day.
 
+LINE ID: @xor7301f
+
 ## Using
 - Python 3.6
 - Flask
