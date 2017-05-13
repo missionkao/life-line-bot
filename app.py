@@ -9,7 +9,8 @@ from linebot.exceptions import (
     InvalidSignatureError
 )
 from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage,
+    MessageEvent, TextMessage, TextSendMessage, TemplateSendMessage,
+    ButtonsTemplate, PostbackTemplateAction
 )
 
 app = Flask(__name__)
@@ -68,9 +69,22 @@ def handle_message(event):
 
         content = temperature + "\n" + rain
 
+        template_message = TemplateSendMessage(
+            alt_text="天氣預報",
+            template=ButtonsTemplate(
+                thumbnail_image_url="https://i.imgur.com/a34ds01.jpg",
+                text=content,
+                actions=[
+                    PostbackTemplateAction(
+                        label="天氣預報",
+                        data=" "
+                    )]
+            )
+        )
+
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=content))
+            template_message)
     else:
         print("user_id:", event.source.user_id)
         line_bot_api.reply_message(
