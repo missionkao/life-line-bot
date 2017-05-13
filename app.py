@@ -68,7 +68,7 @@ def handle_message(event):
         print(rain)
 
         content = temperature + "\n" + rain
-        image_url = get_image_url(rain_max)
+        image_url = get_image_url(int(rain_max))
         template_message = TemplateSendMessage(
             alt_text="天氣預報",
             template=ButtonsTemplate(
