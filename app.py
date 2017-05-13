@@ -68,11 +68,11 @@ def handle_message(event):
         print(rain)
 
         content = temperature + "\n" + rain
-
+        image_url = get_image_url(rain_max)
         template_message = TemplateSendMessage(
             alt_text="天氣預報",
             template=ButtonsTemplate(
-                thumbnail_image_url="https://i.imgur.com/a34ds01.jpg",
+                thumbnail_image_url=image_url,
                 text=content,
                 actions=[
                     PostbackTemplateAction(
@@ -100,6 +100,15 @@ def parse_weather(payload):
     max_value = max(values)
     min_value = 0 if min(values) is "" else min(values)
     return min_value, max_value
+
+
+def get_image_url(max_rain):
+    if max_rain >= 50:
+        return "https://i.imgur.com/a34ds01.jpg"
+    elif max_rain >= 20:
+        return "https://i.imgur.com/66aSMf1.jpg"
+    else:
+        return "https://imgur.com/JQ7S8zM.jpg"
 
 
 if __name__ == "__main__":
