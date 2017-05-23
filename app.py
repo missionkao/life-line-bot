@@ -1,7 +1,6 @@
 import os
-from bs4 import BeautifulSoup
-from urllib.request import urlopen
 from flask import Flask, request, abort
+import requests
 
 from linebot import (
     LineBotApi, WebhookHandler
@@ -10,7 +9,8 @@ from linebot.exceptions import (
     InvalidSignatureError
 )
 from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage,
+    MessageEvent, TextMessage, TextSendMessage, TemplateSendMessage,
+    ButtonsTemplate, PostbackTemplateAction
 )
 
 app = Flask(__name__)
@@ -22,10 +22,13 @@ handler = WebhookHandler(YOUR_CHANNEL_SECRET)
 
 USER_ID = "U7fc6670c8ae890fcaf33f99a9796fcfc"
 
-dataid = "F-C0032-009"
-authorizationkey = "CWB-BE234F8A-9F14-4069-A9F5-8795A3C20BC3"
-url = "http://opendata.cwb.gov.tw/opendataapi?\
-dataid={}&authorizationkey={}".format(dataid, authorizationkey)
+URL = "http://data.taipei/opendata/datalist/apiAccess"
+
+payload_base = {"scope": "resourceAquire",
+                "q": "大安區",
+                }
+temperature_rid = "1f1aaba5-616a-4a33-867d-878142cac5c4"
+rain_rid = "00fcb626-9296-4ae1-9c87-f019871755c8"
 
 
 @app.route("/")
@@ -54,10 +57,34 @@ def callback():
 def handle_message(event):
     if event.message.text == "天氣":
         print("start parsing")
-        content = parse_weather()
+        payload_base["rid"] = temperature_rid
+        temperature_min, temperature_max = parse_weather(payload_base)
+        temperature = "氣溫{} ~ {}度".format(temperature_min, temperature_max)
+        print(temperature)
+
+        payload_base["rid"] = rain_rid
+        rain_min, rain_max = parse_weather(payload_base)
+        rain = "降雨機率{} ~ {}%".format(rain_min, rain_max)
+        print(rain)
+
+        content = temperature + "\n" + rain
+        image_url = get_image_url(int(rain_max))
+        template_message = TemplateSendMessage(
+            alt_text="天氣預報",
+            template=ButtonsTemplate(
+                thumbnail_image_url=image_url,
+                text=content,
+                actions=[
+                    PostbackTemplateAction(
+                        label="天氣預報",
+                        data=" "
+                    )]
+            )
+        )
+
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=content))
+            template_message)
     else:
         print("user_id:", event.source.user_id)
         line_bot_api.reply_message(
@@ -65,20 +92,23 @@ def handle_message(event):
             TextSendMessage(text=event.message.text))
 
 
-def parse_weather():
-    print(url)
-    data = urlopen(url).read()
-    print("Downloaded")
-    soup = BeautifulSoup(data, "xml")
+def parse_weather(payload):
+    r = requests.get(URL, params=payload)
+    data = r.json()
+    weathers = data["result"]["results"]
+    values = [w["value"] for w in weathers]
+    max_value = max(values)
+    min_value = 0 if min(values) is "" else min(values)
+    return min_value, max_value
 
-    weather = soup.find("parameterSet")
-    parameters = weather.find_all("parameterValue")
-    results = ""
-    for parameter in parameters:
-        result = parameter.text
-        result_text = result.replace(" ", "").replace("\n", "")
-        results = results + result_text + "\n"
-    return results
+
+def get_image_url(max_rain):
+    if max_rain >= 50:
+        return "https://i.imgur.com/a34ds01.jpg"
+    elif max_rain >= 20:
+        return "https://i.imgur.com/66aSMf1.jpg"
+    else:
+        return "https://imgur.com/JQ7S8zM.jpg"
 
 
 if __name__ == "__main__":
