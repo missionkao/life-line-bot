@@ -10,7 +10,7 @@ from linebot.exceptions import (
 )
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, TemplateSendMessage,
-    ButtonsTemplate, PostbackTemplateAction
+    ButtonsTemplate, PostbackTemplateAction, LocationMessage
 )
 
 app = Flask(__name__)
@@ -55,6 +55,7 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
+    print("user_id:", event.source.user_id)
     if event.message.text == "天氣":
         print("start parsing")
         payload_base["rid"] = temperature_rid
@@ -86,10 +87,21 @@ def handle_message(event):
             event.reply_token,
             template_message)
     else:
-        print("user_id:", event.source.user_id)
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=event.message.text))
+
+
+@handler.add(MessageEvent, message=LocationMessage)
+def handle_location(event):
+    print("user_id:", event.source.user_id)
+    print("latitude: ", event.message.latitude)
+    print("longitude: ", event.message.longitude)
+    response = "{},{}"\
+        .format(event.message.latitude, event.message.longitude)
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=response))
 
 
 def parse_weather(payload):
