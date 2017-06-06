@@ -10,7 +10,8 @@ from linebot.exceptions import (
 )
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, TemplateSendMessage,
-    ButtonsTemplate, PostbackTemplateAction, LocationMessage
+    ButtonsTemplate, PostbackTemplateAction, LocationMessage,
+    CarouselTemplate, CarouselColumn, URITemplateAction
 )
 
 app = Flask(__name__)
@@ -97,11 +98,26 @@ def handle_location(event):
     print("user_id:", event.source.user_id)
     print("latitude: ", event.message.latitude)
     print("longitude: ", event.message.longitude)
-    response = "{},{}"\
-        .format(event.message.latitude, event.message.longitude)
+    carousel_template = CarouselTemplate(columns=[
+        CarouselColumn(title='標題', text='地址評分', actions=[
+            URITemplateAction(
+                label='餐廳', uri='https://line.me'),
+            URITemplateAction(
+                label='地址', uri='https://line.me'),
+        ]),
+        CarouselColumn(title='標題', text='地址評分', actions=[
+            URITemplateAction(
+                label='餐廳', uri='https://line.me'),
+            URITemplateAction(
+                label='地址', uri='https://line.me'),
+        ]),
+    ])
+    template_message = TemplateSendMessage(
+        alt_text="餐廳小幫手",
+        template=carousel_template
+    )
     line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=response))
+        event.reply_token, template_message)
 
 
 def parse_weather(payload):
