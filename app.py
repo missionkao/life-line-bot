@@ -1,6 +1,7 @@
 import os
 from flask import Flask, request, abort
 import requests
+from urllib.parse import quote
 
 from linebot import (
     LineBotApi, WebhookHandler
@@ -10,12 +11,14 @@ from linebot.exceptions import (
 )
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, TemplateSendMessage,
-    ButtonsTemplate, PostbackTemplateAction
+    ButtonsTemplate, PostbackTemplateAction, LocationMessage,
+    CarouselTemplate, CarouselColumn, URITemplateAction
 )
 
 app = Flask(__name__)
 YOUR_CHANNEL_ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN")
 YOUR_CHANNEL_SECRET = os.environ.get("SECRET")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 line_bot_api = LineBotApi(YOUR_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(YOUR_CHANNEL_SECRET)
@@ -23,6 +26,7 @@ handler = WebhookHandler(YOUR_CHANNEL_SECRET)
 USER_ID = "U7fc6670c8ae890fcaf33f99a9796fcfc"
 
 URL = "http://data.taipei/opendata/datalist/apiAccess"
+GOOGLE_URI = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
 
 payload_base = {"scope": "resourceAquire",
                 "q": "大安區",
@@ -55,6 +59,7 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
+    print("user_id:", event.source.user_id)
     if event.message.text == "天氣":
         print("start parsing")
         payload_base["rid"] = temperature_rid
@@ -86,10 +91,25 @@ def handle_message(event):
             event.reply_token,
             template_message)
     else:
-        print("user_id:", event.source.user_id)
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=event.message.text))
+
+
+@handler.add(MessageEvent, message=LocationMessage)
+def handle_location(event):
+    print("user_id:", event.source.user_id)
+    print("latitude: ", event.message.latitude)
+    print("longitude: ", event.message.longitude)
+    location = "{},{}".format(event.message.latitude, event.message.longitude)
+    columns = get_restaurants_carousel(location)
+    carousel_template = CarouselTemplate(columns=columns)
+    template_message = TemplateSendMessage(
+        alt_text="餐廳小幫手",
+        template=carousel_template
+    )
+    line_bot_api.reply_message(
+        event.reply_token, template_message)
 
 
 def parse_weather(payload):
@@ -109,6 +129,36 @@ def get_image_url(max_rain):
         return "https://i.imgur.com/66aSMf1.jpg"
     else:
         return "https://imgur.com/JQ7S8zM.jpg"
+
+
+def get_restaurants_carousel(location):
+    payload = {
+        "location": location,
+        "radius": 500,
+        "type": "restaurant",
+        "key": GOOGLE_API_KEY,
+        "language": "zh-TW"
+    }
+    r = requests.get(GOOGLE_URI, params=payload)
+    r_json = r.json()
+    json_results = r_json["results"]
+    json_results = sorted(json_results,
+                          key=lambda k: k.get("rating", 0), reverse=True)
+    results = []
+    for r in json_results[0:5]:
+        title = r["name"]
+        rating = "Rating: " + str(r["rating"])
+        address = r["vicinity"]
+        title_uri = "https://www.google.com.tw/search?q=" + quote(title)
+        address_uri = "https://www.google.com.tw/maps/place/" + quote(title)
+        carousel = CarouselColumn(title=title, text=rating, actions=[
+            URITemplateAction(
+                label=title, uri=title_uri),
+            URITemplateAction(
+                label=address, uri=address_uri),
+        ])
+        results.append(carousel)
+    return results
 
 
 if __name__ == "__main__":
